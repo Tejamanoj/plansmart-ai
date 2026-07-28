@@ -23,10 +23,9 @@ export interface GeneratedItinerary {
 }
 
 /**
- * Fallback static mock trip generator when Gemini API is unavailable.
+ * Fallback static mock trip generator when Gemini API is unavailable or returns invalid format.
  */
 function getMockItinerary(promptText: string): GeneratedItinerary {
-  // Simple heuristics to parse destination from prompt if possible
   let destination = 'Tokyo, Japan';
   if (promptText.toLowerCase().includes('paris')) {
     destination = 'Paris, France';
@@ -126,14 +125,12 @@ export const geminiService = {
   async generateTrip(promptText: string): Promise<GeneratedItinerary> {
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // Graceful fallback to Mock JSON if Gemini API key is missing or set to default placeholder
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
       console.warn('⚠️ GEMINI_API_KEY environment variable is missing or set to placeholder. Falling back to high-quality mock JSON.');
       return getMockItinerary(promptText);
     }
 
     try {
-      // Initialize Google Generative AI SDK
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
@@ -183,9 +180,22 @@ Ensure all fields are fully populated and the estimated cost is realistic. Do no
         throw new Error('Empty response received from Gemini API');
       }
 
-      // Parse JSON response safely
-      const parsedItinerary: GeneratedItinerary = JSON.parse(textResponse);
-      return parsedItinerary;
+      // Robust Markdown codeblock stripping in case Gemini wraps response in ```json ... ```
+      const cleanedText = textResponse.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+
+      try {
+        const parsedItinerary: GeneratedItinerary = JSON.parse(cleanedText);
+        
+        // Basic schema validation check
+        if (!parsedItinerary || typeof parsedItinerary !== 'object' || !Array.isArray(parsedItinerary.days)) {
+          throw new Error('Malformed JSON structure: missing days array');
+        }
+
+        return parsedItinerary;
+      } catch (jsonErr) {
+        console.warn('⚠️ Gemini returned non-parsable or malformed JSON. Using mock fallback.', jsonErr);
+        return getMockItinerary(promptText);
+      }
     } catch (error) {
       console.error('❌ Failed to generate itinerary via Gemini API. Falling back to high-quality mock data:', error);
       return getMockItinerary(promptText);

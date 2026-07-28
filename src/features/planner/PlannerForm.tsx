@@ -5,12 +5,13 @@ import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { useTripContext } from '@/context/useTripContext';
 import { aiService } from '@/services/aiService';
+import { LoadingSkeleton } from '@/components/feedback/LoadingSkeleton';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import type { TripItinerary } from '@/types/trip';
 import {
   Sparkles,
   Send,
   Loader2,
-  AlertCircle,
   Lightbulb,
   RotateCcw,
   CheckCircle,
@@ -18,7 +19,8 @@ import {
   MapPin,
   DollarSign,
   Compass,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react';
 
 /** Maximum character limit for the trip prompt textarea */
@@ -41,12 +43,14 @@ export const PlannerForm: React.FC = () => {
   // ── State ──────────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [slowResponseNotice, setSlowResponseNotice] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState<boolean>(false);
   const [generatedTrip, setGeneratedTrip] = useState<TripItinerary | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const slowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // ── Derived / Memoised Values ──────────────────────────────────────
   const charCount = useMemo(() => prompt.length, [prompt]);
@@ -64,17 +68,24 @@ export const PlannerForm: React.FC = () => {
 
   // ── Effects ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!generatedTrip) {
+    if (!generatedTrip && !isLoading && !error) {
       textareaRef.current?.focus();
     }
-  }, [generatedTrip]);
+  }, [generatedTrip, isLoading, error]);
+
+  // Clean up slow response timer
+  useEffect(() => {
+    return () => {
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
+    };
+  }, []);
 
   // ── Handlers ───────────────────────────────────────────────────────
 
-  /** Validates input and triggers backend generate request */
+  /** Validates input and triggers backend generate request with resilience & retry handling */
   const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
+    async (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
       setHasSubmitted(true);
 
       // Validation check
@@ -93,7 +104,13 @@ export const PlannerForm: React.FC = () => {
 
       setError(null);
       setIsLoading(true);
+      setSlowResponseNotice(false);
       setGeneratedTrip(null);
+
+      // Slow response timer notice (triggers if response takes > 6 seconds)
+      slowTimerRef.current = setTimeout(() => {
+        setSlowResponseNotice(true);
+      }, 6000);
 
       try {
         // Send request to server endpoint via API Service
@@ -107,7 +124,9 @@ export const PlannerForm: React.FC = () => {
         const errorMessage = err instanceof Error ? err.message : 'Failed to connect to the backend server. Please verify the server is running on port 5000.';
         setError(errorMessage);
       } finally {
+        if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
         setIsLoading(false);
+        setSlowResponseNotice(false);
       }
     },
     [prompt, saveTrip]
@@ -131,7 +150,39 @@ export const PlannerForm: React.FC = () => {
     textareaRef.current?.focus();
   }, []);
 
-  // ── Render Successful Trip Gen Card (Do not render full itinerary list yet) ──
+  // ── Render 1: Error State with Retry Button ─────────────────────────
+  if (error && !isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <ErrorState
+          title="Trip Generation Failed"
+          message={error}
+          onRetry={() => handleSubmit()}
+          onReset={handleClear}
+        />
+      </div>
+    );
+  }
+
+  // ── Render 2: Loading State with Skeleton & Slow Notice ────────────
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        {slowResponseNotice && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs sm:text-sm flex items-center justify-between gap-3 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400 shrink-0 animate-spin" />
+              <span>Generative AI is crafting your detailed itinerary... (taking slightly longer than usual)</span>
+            </div>
+            <Badge variant="warning" className="shrink-0">Processing</Badge>
+          </div>
+        )}
+        <LoadingSkeleton type="itinerary" />
+      </div>
+    );
+  }
+
+  // ── Render 3: Successful Generation Confirmation Card ────────────────
   if (generatedTrip) {
     const totalActivities = generatedTrip.days.reduce(
       (sum, day) => sum + day.activities.length,
@@ -140,7 +191,6 @@ export const PlannerForm: React.FC = () => {
 
     return (
       <Card className="max-w-2xl mx-auto space-y-6 border border-emerald-500/25 bg-emerald-950/10 p-8 shadow-2xl relative overflow-hidden">
-        {/* Glow backdrop */}
         <div className="absolute -right-16 -top-16 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="flex flex-col items-center text-center space-y-4">
@@ -155,7 +205,6 @@ export const PlannerForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Short Summary Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
           <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Destination</span>
@@ -186,7 +235,6 @@ export const PlannerForm: React.FC = () => {
           </div>
         </div>
 
-        {/* View Details Call-to-Action */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <Link to={`/itinerary/${generatedTrip.id}`} className="flex-1">
             <Button variant="glow" size="lg" className="w-full">
@@ -202,12 +250,11 @@ export const PlannerForm: React.FC = () => {
     );
   }
 
-  // ── Render Form ────────────────────────────────────────────────────
+  // ── Render 4: Form Input ───────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
       {/* ── Main Input Card ─────────────────────────────────────── */}
       <Card className="space-y-5 border border-slate-800">
-        {/* Card Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-md">
@@ -221,7 +268,6 @@ export const PlannerForm: React.FC = () => {
           <Badge variant="info">AI Powered</Badge>
         </div>
 
-        {/* Textarea */}
         <div className="relative">
           <textarea
             ref={textareaRef}
@@ -233,18 +279,13 @@ export const PlannerForm: React.FC = () => {
             }}
             placeholder="Example: Plan a 5-day budget trip to Tokyo for 2 people. We love street food, temples, and anime culture. Budget is ₹80,000..."
             rows={7}
-            maxLength={MAX_CHARS + 50} // allow typing slightly past so counter turns red
+            maxLength={MAX_CHARS + 50}
             disabled={isLoading}
             aria-invalid={!!error}
             aria-describedby="prompt-error"
-            className={`w-full resize-none rounded-xl bg-slate-900/80 border px-4 py-3.5 text-slate-100 text-sm leading-relaxed placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-              error
-                ? 'border-rose-500/60 focus:ring-rose-500/40'
-                : 'border-slate-700/80 focus:ring-sky-500/40 focus:border-sky-500/50'
-            }`}
+            className="w-full resize-none rounded-xl bg-slate-900/80 border border-slate-700/80 px-4 py-3.5 text-slate-100 text-sm leading-relaxed placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
-          {/* Character Counter */}
           <div className="flex items-center justify-between mt-2 px-1">
             <div className="text-xs text-slate-500">
               {prompt.trim().length < 10 && hasSubmitted && (
@@ -257,19 +298,6 @@ export const PlannerForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Validation / Server Error Message */}
-        {error && (
-          <div
-            id="prompt-error"
-            role="alert"
-            className="flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-sm"
-          >
-            <AlertCircle className="w-5 h-5 mt-0.5 text-rose-400 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Action Buttons Row */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
           <Button
             type="submit"
