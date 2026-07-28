@@ -1,13 +1,14 @@
 /**
- * Base HTTP client wrapper for future backend / AI API service integrations.
+ * Base HTTP client wrapper for backend / AI API service integrations.
  */
 export class ApiClient {
-  private static baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+  private static baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
   public static async get<T>(endpoint: string): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.error || `HTTP error! status: ${response.status}`);
     }
     return response.json();
   }
@@ -19,7 +20,8 @@ export class ApiClient {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.error || `HTTP error! status: ${response.status}`);
     }
     return response.json();
   }

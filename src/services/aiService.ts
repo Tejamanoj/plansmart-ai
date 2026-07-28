@@ -1,12 +1,21 @@
-import type { TripPlanRequest, TripItinerary } from '@/types/trip';
+import { ApiClient } from './api/client';
+import type { TripItinerary } from '@/types/trip';
 
 /**
- * AI Service interface abstraction for AI-driven trip generation.
- * Ready for OpenAI / Gemini API integration in upcoming feature milestones.
+ * AI Service layer orchestrating trip generation endpoints.
  */
 export const aiService = {
-  async generateItinerary(_request: TripPlanRequest): Promise<TripItinerary> {
-    // Architecture placeholder for future AI service integration.
-    throw new Error('aiService.generateItinerary is scheduled for the AI integration milestone.');
+  async generateItinerary(prompt: string): Promise<TripItinerary> {
+    const data = await ApiClient.post<Omit<TripItinerary, 'id' | 'createdAt'>, { prompt: string }>(
+      '/generate-trip',
+      { prompt }
+    );
+    
+    // Enrich with client-side unique identifiers and generation timestamp
+    return {
+      ...data,
+      id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+      createdAt: new Date().toISOString(),
+    } as TripItinerary;
   },
 };

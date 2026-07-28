@@ -1,7 +1,11 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
+import { useTripContext } from '@/context/useTripContext';
+import { aiService } from '@/services/aiService';
+import type { TripItinerary } from '@/types/trip';
 import {
   Sparkles,
   Send,
@@ -9,6 +13,12 @@ import {
   AlertCircle,
   Lightbulb,
   RotateCcw,
+  CheckCircle,
+  Calendar,
+  MapPin,
+  DollarSign,
+  Compass,
+  ArrowRight
 } from 'lucide-react';
 
 /** Maximum character limit for the trip prompt textarea */
@@ -23,27 +33,17 @@ const EXAMPLE_PROMPTS = [
 ];
 
 /**
- * PlannerForm — Trip Planning Form Component (Milestone 3)
- *
- * React Hooks used:
- * ─────────────────
- * • useState    — Manages local form state: prompt text, loading flag, error message, and submitted flag.
- * • useCallback — Memoises event handler functions (handleSubmit, handleExampleClick, handleClear)
- *                 so they are not recreated on every render. Improves performance and satisfies
- *                 dependency arrays of child components or effects.
- * • useMemo     — Derives computed values (character count, whether input is valid, counter color)
- *                 without recalculating on every render — only when `prompt` changes.
- * • useRef      — Holds a mutable reference to the <textarea> DOM node so we can programmatically
- *                 call `.focus()` after clearing or clicking an example prompt.
- * • useEffect   — Auto-focuses the textarea when the component first mounts, giving the user an
- *                 immediate typing target.
+ * PlannerForm — Trip Planning Form Component
  */
 export const PlannerForm: React.FC = () => {
+  const { saveTrip } = useTripContext();
+
   // ── State ──────────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState<boolean>(false);
+  const [generatedTrip, setGeneratedTrip] = useState<TripItinerary | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,19 +64,20 @@ export const PlannerForm: React.FC = () => {
 
   // ── Effects ────────────────────────────────────────────────────────
   useEffect(() => {
-    // Auto-focus the textarea when the component mounts
-    textareaRef.current?.focus();
-  }, []);
+    if (!generatedTrip) {
+      textareaRef.current?.focus();
+    }
+  }, [generatedTrip]);
 
   // ── Handlers ───────────────────────────────────────────────────────
 
-  /** Validates input and simulates a loading state (no backend yet) */
+  /** Validates input and triggers backend generate request */
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       setHasSubmitted(true);
 
-      // Validation: empty / too short
+      // Validation check
       if (!prompt.trim()) {
         setError('Please describe your trip before generating a plan.');
         return;
@@ -90,18 +91,26 @@ export const PlannerForm: React.FC = () => {
         return;
       }
 
-      // Clear any previous error and start simulated loading
       setError(null);
       setIsLoading(true);
+      setGeneratedTrip(null);
 
-      // Simulate network delay — backend not connected yet
-      setTimeout(() => {
+      try {
+        // Send request to server endpoint via API Service
+        const tripPlan = await aiService.generateItinerary(prompt);
+        
+        // Save to LocalStorage context for persistence
+        saveTrip(tripPlan);
+        setGeneratedTrip(tripPlan);
+      } catch (err: unknown) {
+        console.error('API integration failure:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to connect to the backend server. Please verify the server is running on port 5000.';
+        setError(errorMessage);
+      } finally {
         setIsLoading(false);
-        // Future milestone: send `prompt` to the AI service here
-        alert('✅ AI generation will be wired in the next milestone.\n\nYour prompt:\n' + prompt);
-      }, 2000);
+      }
     },
-    [prompt]
+    [prompt, saveTrip]
   );
 
   /** Fill the textarea with an example prompt */
@@ -109,6 +118,7 @@ export const PlannerForm: React.FC = () => {
     setPrompt(example);
     setError(null);
     setHasSubmitted(false);
+    setGeneratedTrip(null);
     textareaRef.current?.focus();
   }, []);
 
@@ -117,10 +127,82 @@ export const PlannerForm: React.FC = () => {
     setPrompt('');
     setError(null);
     setHasSubmitted(false);
+    setGeneratedTrip(null);
     textareaRef.current?.focus();
   }, []);
 
-  // ── Render ─────────────────────────────────────────────────────────
+  // ── Render Successful Trip Gen Card (Do not render full itinerary list yet) ──
+  if (generatedTrip) {
+    const totalActivities = generatedTrip.days.reduce(
+      (sum, day) => sum + day.activities.length,
+      0
+    );
+
+    return (
+      <Card className="max-w-2xl mx-auto space-y-6 border border-emerald-500/25 bg-emerald-950/10 p-8 shadow-2xl relative overflow-hidden">
+        {/* Glow backdrop */}
+        <div className="absolute -right-16 -top-16 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="p-4 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <CheckCircle className="w-10 h-10" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-extrabold text-white">Trip Generated Successfully!</h2>
+            <p className="text-sm text-slate-400 max-w-md">
+              PlanSmart AI created a tailored travel itinerary based on your preferences.
+            </p>
+          </div>
+        </div>
+
+        {/* Short Summary Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Destination</span>
+            <span className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-sky-400" /> {generatedTrip.destination}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Duration & Style</span>
+            <span className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-indigo-400" /> {generatedTrip.durationDays} Days • {generatedTrip.travelStyle}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Estimated Expenses</span>
+            <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+              <DollarSign className="w-4 h-4" /> {generatedTrip.totalBudget} {generatedTrip.currency}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Planned Schedule</span>
+            <span className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
+              <Compass className="w-4 h-4 text-purple-400" /> {totalActivities} curated activities
+            </span>
+          </div>
+        </div>
+
+        {/* View Details Call-to-Action */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <Link to={`/itinerary/${generatedTrip.id}`} className="flex-1">
+            <Button variant="glow" size="lg" className="w-full">
+              <span>View Full Itinerary Details</span>
+              <ArrowRight className="w-4.5 h-4.5" />
+            </Button>
+          </Link>
+          <Button variant="outline" size="lg" onClick={handleClear}>
+            Plan Another Trip
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Render Form ────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
       {/* ── Main Input Card ─────────────────────────────────────── */}
@@ -175,7 +257,7 @@ export const PlannerForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Validation Error Message */}
+        {/* Validation / Server Error Message */}
         {error && (
           <div
             id="prompt-error"

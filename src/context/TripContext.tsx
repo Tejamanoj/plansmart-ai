@@ -1,17 +1,22 @@
 import React, { useState, type ReactNode } from 'react';
 import type { TripItinerary, TripPlanRequest } from '@/types/trip';
+import { tripService } from '@/services/tripService';
 import { TripContext } from './TripContextState';
 
 export const TripProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentPlanRequest, setCurrentPlanRequest] = useState<TripPlanRequest | null>(null);
-  const [savedTrips, setSavedTrips] = useState<TripItinerary[]>([]);
+  
+  // Use lazy state initialization to read from localStorage securely on mount
+  const [savedTrips, setSavedTrips] = useState<TripItinerary[]>(() => tripService.getSavedTrips());
 
   const saveTrip = (trip: TripItinerary) => {
-    setSavedTrips((prev) => [...prev.filter((t) => t.id !== trip.id), trip]);
+    tripService.saveTrip(trip);
+    setSavedTrips(tripService.getSavedTrips());
   };
 
   const removeSavedTrip = (tripId: string) => {
-    setSavedTrips((prev) => prev.filter((t) => t.id !== tripId));
+    tripService.deleteTrip(tripId);
+    setSavedTrips(tripService.getSavedTrips());
   };
 
   return (
