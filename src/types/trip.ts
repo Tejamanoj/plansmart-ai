@@ -10,6 +10,9 @@ export interface Activity {
   location: string;
   estimatedCost: number;
   category: ActivityCategory;
+  isCompleted?: boolean;
+  isFavorite?: boolean;
+  notes?: string;
 }
 
 export interface DayItinerary {

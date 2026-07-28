@@ -11,7 +11,7 @@ const VALID_CATEGORIES: ActivityCategory[] = [
 
 /**
  * Sanitizes and repairs raw or malformed itinerary payloads from the API.
- * Ensures default fallback values for any missing array or field to guarantee zero frontend crashes.
+ * Preserves user interactive properties (isCompleted, isFavorite, notes).
  */
 export function sanitizeItinerary(raw: Partial<TripItinerary>): TripItinerary {
   const destination = typeof raw.destination === 'string' && raw.destination.trim()
@@ -38,13 +38,11 @@ export function sanitizeItinerary(raw: Partial<TripItinerary>): TripItinerary {
     ? raw.currency.trim()
     : 'USD';
 
-  // Sanitize days array safely
   const rawDays = Array.isArray(raw.days) ? raw.days : [];
   const days: DayItinerary[] = rawDays.map((d: Partial<DayItinerary>, dayIdx: number) => {
     const dayNumber = typeof d?.dayNumber === 'number' ? d.dayNumber : dayIdx + 1;
     const dayTitle = typeof d?.title === 'string' && d.title.trim() ? d.title.trim() : `Day ${dayNumber}`;
 
-    // Sanitize activities array safely inside each day
     const rawActivities = Array.isArray(d?.activities) ? d.activities : [];
     const activities: Activity[] = rawActivities.map((a: Partial<Activity>, actIdx: number) => {
       const category: ActivityCategory = (typeof a?.category === 'string' && VALID_CATEGORIES.includes(a.category as ActivityCategory))
@@ -59,6 +57,9 @@ export function sanitizeItinerary(raw: Partial<TripItinerary>): TripItinerary {
         location: typeof a?.location === 'string' ? a.location.trim() : destination,
         estimatedCost: typeof a?.estimatedCost === 'number' && a.estimatedCost >= 0 ? a.estimatedCost : 0,
         category,
+        isCompleted: Boolean(a?.isCompleted),
+        isFavorite: Boolean(a?.isFavorite),
+        notes: typeof a?.notes === 'string' ? a.notes : '',
       };
     });
 
@@ -90,6 +91,9 @@ export function sanitizeItinerary(raw: Partial<TripItinerary>): TripItinerary {
             location: destination,
             estimatedCost: 20,
             category: 'culture',
+            isCompleted: false,
+            isFavorite: false,
+            notes: '',
           }
         ]
       }

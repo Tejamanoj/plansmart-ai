@@ -8,7 +8,9 @@ import {
   DollarSign,
   Briefcase,
   Layers,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  Star
 } from 'lucide-react';
 
 interface ItineraryOverviewProps {
@@ -16,17 +18,26 @@ interface ItineraryOverviewProps {
 }
 
 export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({ trip }) => {
-  const totalActivities = trip.days.reduce((sum, day) => sum + day.activities.length, 0);
+  let totalActivities = 0;
+  let completedActivities = 0;
+  let favoriteActivities = 0;
+  let totalCost = 0;
 
-  // Calculate actual summed cost of all activities to compare with totalBudget
-  const totalCost = trip.days.reduce(
-    (sum, day) => sum + day.activities.reduce((dSum, act) => dSum + act.estimatedCost, 0),
-    0
-  );
+  trip.days.forEach((day) => {
+    day.activities.forEach((act) => {
+      totalActivities += 1;
+      if (act.isCompleted) completedActivities += 1;
+      if (act.isFavorite) favoriteActivities += 1;
+      totalCost += act.estimatedCost;
+    });
+  });
+
+  const completionPercentage = totalActivities > 0
+    ? Math.round((completedActivities / totalActivities) * 100)
+    : 0;
 
   return (
     <Card className="glass-panel border-slate-700/60 p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
-      {/* Background decoration orbs */}
       <div className="absolute right-0 top-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Title Header */}
@@ -36,6 +47,11 @@ export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({ trip }) =>
             <Badge variant="purple" className="flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> AI Itinerary
             </Badge>
+            {favoriteActivities > 0 && (
+              <Badge variant="warning" className="flex items-center gap-1">
+                <Star className="w-3 h-3 fill-amber-400" /> {favoriteActivities} Favorites
+              </Badge>
+            )}
             <span className="text-xs text-slate-500">Created {new Date(trip.createdAt).toLocaleDateString()}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
@@ -98,20 +114,21 @@ export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({ trip }) =>
         </div>
       </div>
 
-      {/* Expense Allocation Warning / Success Summary */}
+      {/* Automatic Live Progress Tracker */}
       <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2">
-        <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-          <span>Budget Utilization Status</span>
-          <span className={totalCost <= trip.totalBudget ? 'text-emerald-400' : 'text-rose-400'}>
-            {totalCost} / {trip.totalBudget} {trip.currency} ({Math.round((totalCost / trip.totalBudget) * 100)}%)
+        <div className="flex items-center justify-between text-xs font-semibold">
+          <span className="text-slate-300 flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            Trip Execution Progress
+          </span>
+          <span className="text-emerald-400">
+            {completedActivities} of {totalActivities} completed ({completionPercentage}%)
           </span>
         </div>
-        <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+        <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              totalCost <= trip.totalBudget ? 'bg-emerald-500' : 'bg-rose-500'
-            }`}
-            style={{ width: `${Math.min((totalCost / trip.totalBudget) * 100, 100)}%` }}
+            className="h-full bg-gradient-to-r from-emerald-500 to-sky-400 rounded-full transition-all duration-500"
+            style={{ width: `${completionPercentage}%` }}
           />
         </div>
       </div>

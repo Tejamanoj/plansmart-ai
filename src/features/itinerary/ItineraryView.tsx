@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTripContext } from '@/context/useTripContext';
 import { ItineraryOverview } from './ItineraryOverview';
@@ -32,6 +32,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Asakusa, Taito City',
           estimatedCost: 0,
           category: 'culture',
+          isCompleted: true,
+          isFavorite: true,
+          notes: 'Great morning photo spot! Very peaceful early.',
         },
         {
           id: 't2',
@@ -41,6 +44,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Nishi-Asakusa, Taito City',
           estimatedCost: 45,
           category: 'food',
+          isCompleted: true,
+          isFavorite: false,
+          notes: 'Reserve a table by 12:15 PM.',
         },
         {
           id: 't3',
@@ -50,6 +56,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Sumida River Pier',
           estimatedCost: 15,
           category: 'sightseeing',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't4',
@@ -59,6 +68,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Hama-rikyu Gardens',
           estimatedCost: 10,
           category: 'relaxation',
+          isCompleted: false,
+          isFavorite: true,
+          notes: '',
         }
       ]
     },
@@ -74,6 +86,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Yoyogikamizonocho, Shibuya',
           estimatedCost: 0,
           category: 'culture',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't6',
@@ -83,6 +98,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Jingumae, Shibuya',
           estimatedCost: 8,
           category: 'food',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't7',
@@ -92,6 +110,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Shibuya Station Square',
           estimatedCost: 20,
           category: 'sightseeing',
+          isCompleted: false,
+          isFavorite: true,
+          notes: '',
         },
         {
           id: 't8',
@@ -101,6 +122,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Dogenzaka, Shibuya',
           estimatedCost: 35,
           category: 'nightlife',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         }
       ]
     },
@@ -116,6 +140,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Toyosu, Koto City',
           estimatedCost: 28,
           category: 'outdoor',
+          isCompleted: false,
+          isFavorite: true,
+          notes: '',
         },
         {
           id: 't10',
@@ -125,6 +152,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Daiba, Minato City',
           estimatedCost: 0,
           category: 'sightseeing',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't11',
@@ -134,6 +164,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Toyosu Market Pier',
           estimatedCost: 60,
           category: 'food',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         }
       ]
     },
@@ -149,6 +182,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Uenokoen, Taito City',
           estimatedCost: 5,
           category: 'outdoor',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't13',
@@ -158,6 +194,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Ueno, Taito City',
           estimatedCost: 12,
           category: 'food',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't14',
@@ -167,6 +206,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Sotokanda, Chiyoda City',
           estimatedCost: 15,
           category: 'culture',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         }
       ]
     },
@@ -182,6 +224,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Chiyoda, Chiyoda City',
           estimatedCost: 0,
           category: 'outdoor',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't16',
@@ -191,6 +236,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Ginza, Chuo City',
           estimatedCost: 20,
           category: 'sightseeing',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         },
         {
           id: 't17',
@@ -200,6 +248,9 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           location: 'Ginza district, Tokyo',
           estimatedCost: 120,
           category: 'food',
+          isCompleted: false,
+          isFavorite: false,
+          notes: '',
         }
       ]
     }
@@ -211,16 +262,103 @@ interface ItineraryViewProps {
 }
 
 export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
-  const { savedTrips } = useTripContext();
+  const { savedTrips, saveTrip } = useTripContext();
   const [activeDay, setActiveDay] = useState<number>(1);
+  const [localTripOverride, setLocalTripOverride] = useState<TripItinerary | null>(null);
 
-  // Retrieve matching trip from saved context, with high-fidelity Tokyo mock fallback
+  // Retrieve matching trip from saved context or override
   const trip = useMemo(() => {
+    if (localTripOverride) return localTripOverride;
     if (tripId === 'sample-tokyo-2026') {
       return MOCK_TOKYO_ITINERARY;
     }
     return savedTrips.find((t) => t.id === tripId) || null;
-  }, [savedTrips, tripId]);
+  }, [savedTrips, tripId, localTripOverride]);
+
+  // Helper to update trip immutably
+  const updateTripState = useCallback(
+    (updater: (prev: TripItinerary) => TripItinerary) => {
+      if (!trip) return;
+      const updated = updater(trip);
+      setLocalTripOverride(updated);
+      saveTrip(updated);
+    },
+    [trip, saveTrip]
+  );
+
+  // Handler: Toggle completion state
+  const handleToggleComplete = useCallback(
+    (dayNumber: number, activityId: string) => {
+      updateTripState((prevTrip) => ({
+        ...prevTrip,
+        days: prevTrip.days.map((day) => {
+          if (day.dayNumber !== dayNumber) return day;
+          return {
+            ...day,
+            activities: day.activities.map((act) =>
+              act.id === activityId ? { ...act, isCompleted: !act.isCompleted } : act
+            ),
+          };
+        }),
+      }));
+    },
+    [updateTripState]
+  );
+
+  // Handler: Toggle favorite state
+  const handleToggleFavorite = useCallback(
+    (dayNumber: number, activityId: string) => {
+      updateTripState((prevTrip) => ({
+        ...prevTrip,
+        days: prevTrip.days.map((day) => {
+          if (day.dayNumber !== dayNumber) return day;
+          return {
+            ...day,
+            activities: day.activities.map((act) =>
+              act.id === activityId ? { ...act, isFavorite: !act.isFavorite } : act
+            ),
+          };
+        }),
+      }));
+    },
+    [updateTripState]
+  );
+
+  // Handler: Delete activity
+  const handleDeleteActivity = useCallback(
+    (dayNumber: number, activityId: string) => {
+      updateTripState((prevTrip) => ({
+        ...prevTrip,
+        days: prevTrip.days.map((day) => {
+          if (day.dayNumber !== dayNumber) return day;
+          return {
+            ...day,
+            activities: day.activities.filter((act) => act.id !== activityId),
+          };
+        }),
+      }));
+    },
+    [updateTripState]
+  );
+
+  // Handler: Save personal notes
+  const handleSaveNotes = useCallback(
+    (dayNumber: number, activityId: string, notes: string) => {
+      updateTripState((prevTrip) => ({
+        ...prevTrip,
+        days: prevTrip.days.map((day) => {
+          if (day.dayNumber !== dayNumber) return day;
+          return {
+            ...day,
+            activities: day.activities.map((act) =>
+              act.id === activityId ? { ...act, notes } : act
+            ),
+          };
+        }),
+      }));
+    },
+    [updateTripState]
+  );
 
   // Extract day titles to pass as themes to the DaySelector tabs
   const dayThemes = useMemo(() => {
@@ -265,7 +403,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
 
   return (
     <div className="space-y-8">
-      {/* Itinerary Summary Overview */}
+      {/* Itinerary Summary Overview with live automatic progress calculation */}
       <ItineraryOverview trip={trip} />
 
       {/* Day Selector Tabs and Timeline Section */}
@@ -302,13 +440,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
               <ActivityCard
                 key={activity.id || idx}
                 activity={activity}
+                dayNumber={activeDay}
+                onToggleComplete={handleToggleComplete}
+                onToggleFavorite={handleToggleFavorite}
+                onDeleteActivity={handleDeleteActivity}
+                onSaveNotes={handleSaveNotes}
               />
             ))
           ) : (
             <Card className="text-center py-10">
               <Compass className="w-8 h-8 text-slate-600 mx-auto mb-2 animate-spin" />
-              <h4 className="text-sm font-bold text-slate-300">No scheduled activities today</h4>
-              <p className="text-xs text-slate-500 mt-1">This day is open for spontaneous sightseeing.</p>
+              <h4 className="text-sm font-bold text-slate-300">No scheduled activities on Day {activeDay}</h4>
+              <p className="text-xs text-slate-500 mt-1">This day is open for spontaneous sightseeing or rest.</p>
             </Card>
           )}
         </div>
