@@ -17,8 +17,10 @@ export const MainLayout: React.FC = () => {
       {/* Layout Structure */}
       <Navbar />
       <main
+        id="main-content"
         key={location.pathname}
         className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10"
+        tabIndex={-1}
       >
         <Outlet />
       </main>
