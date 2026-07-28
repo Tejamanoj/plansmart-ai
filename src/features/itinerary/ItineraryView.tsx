@@ -1,15 +1,30 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
 import { useTripContext } from '@/context/useTripContext';
 import { ItineraryOverview } from './ItineraryOverview';
 import { DaySelector } from './DaySelector';
-import { ActivityCard } from './ActivityCard';
+import { SortableActivityCard } from './SortableActivityCard';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
-import { Compass, Clock, AlertTriangle } from 'lucide-react';
+import { Compass, Clock, AlertTriangle, GripVertical } from 'lucide-react';
 import type { TripItinerary, DayItinerary, Activity } from '@/types/trip';
 
-// High-fidelity fallback mock Tokyo itinerary for demonstration and /itinerary/sample-tokyo-2026 URL
+// High-fidelity fallback mock Tokyo itinerary for demonstration
 const MOCK_TOKYO_ITINERARY: TripItinerary = {
   id: 'sample-tokyo-2026',
   title: 'Tokyo Cultural & Future Expedition',
@@ -39,7 +54,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't2',
           title: 'Lunch at Asakusa Imahan',
-          description: 'Legendary restaurant established in 1889, famous for its melt-in-the-mouth Sukiyaki and Shabu-shabu beef dishes.',
+          description: 'Legendary restaurant established in 1889, famous for its Sukiyaki and Shabu-shabu beef dishes.',
           timeSlot: '12:30 PM - 02:00 PM',
           location: 'Nishi-Asakusa, Taito City',
           estimatedCost: 45,
@@ -51,7 +66,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't3',
           title: 'Sumida River Cruise',
-          description: 'Relaxing water bus ride from Asakusa to Hama-rikyu Gardens, offering unique views of Tokyo Skytree and bridges.',
+          description: 'Relaxing water bus ride from Asakusa to Hama-rikyu Gardens, with views of Tokyo Skytree.',
           timeSlot: '02:30 PM - 04:00 PM',
           location: 'Sumida River Pier',
           estimatedCost: 15,
@@ -63,7 +78,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't4',
           title: 'Teatime at Hama-rikyu Tea House',
-          description: 'Drink traditional matcha green tea with wagashi sweets at a floating teahouse in a historical Edo-period garden.',
+          description: 'Traditional matcha green tea with wagashi sweets at a floating teahouse.',
           timeSlot: '04:15 PM - 05:30 PM',
           location: 'Hama-rikyu Gardens',
           estimatedCost: 10,
@@ -71,8 +86,8 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           isCompleted: false,
           isFavorite: true,
           notes: '',
-        }
-      ]
+        },
+      ],
     },
     {
       dayNumber: 2,
@@ -81,7 +96,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't5',
           title: 'Meiji Jingu Shrine Sanctuary',
-          description: 'A serene Shinto shrine dedicated to Emperor Meiji, nestled inside a dense forest of 120,000 evergreen trees.',
+          description: 'A serene Shinto shrine inside a dense forest of 120,000 evergreen trees.',
           timeSlot: '09:00 AM - 10:45 AM',
           location: 'Yoyogikamizonocho, Shibuya',
           estimatedCost: 0,
@@ -93,7 +108,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't6',
           title: 'Stroll Takeshita Street & Crepes',
-          description: 'Walk through the epicentre of Japanese youth culture and kawaii fashion. Try a famous warm crepe packed with fresh fruit and cream.',
+          description: 'Epicentre of Japanese youth culture and kawaii fashion.',
           timeSlot: '11:00 AM - 12:30 PM',
           location: 'Jingumae, Shibuya',
           estimatedCost: 8,
@@ -105,7 +120,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't7',
           title: 'Shibuya Crossing & Shibuya Sky',
-          description: 'Cross the world\'s busiest pedestrian intersection. Head up to the open-air observatory deck for panoramic 360-degree views.',
+          description: 'Cross the world\'s busiest pedestrian intersection and visit the open-air observatory.',
           timeSlot: '01:30 PM - 03:30 PM',
           location: 'Shibuya Station Square',
           estimatedCost: 20,
@@ -117,7 +132,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't8',
           title: 'Izakaya Dinner in Nonbei Yokocho',
-          description: 'Enjoy yakitori skewers and draft beer in a tiny, atmospheric lantern-lit alleyway that captures old Tokyo charms.',
+          description: 'Yakitori skewers and draft beer in a lantern-lit alleyway.',
           timeSlot: '06:30 PM - 09:00 PM',
           location: 'Dogenzaka, Shibuya',
           estimatedCost: 35,
@@ -125,8 +140,8 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           isCompleted: false,
           isFavorite: false,
           notes: '',
-        }
-      ]
+        },
+      ],
     },
     {
       dayNumber: 3,
@@ -135,7 +150,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't9',
           title: 'teamLab Planets Exhibition',
-          description: 'Immersive digital art museum where you walk through water and interact with glowing floating orchid installations.',
+          description: 'Immersive digital art museum — walk through water and glowing orchid installations.',
           timeSlot: '09:00 AM - 11:30 AM',
           location: 'Toyosu, Koto City',
           estimatedCost: 28,
@@ -147,7 +162,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't10',
           title: 'Odaiba Seaside Park walking',
-          description: 'Stroll along the beach, see the miniature Statue of Liberty copy, and view the Rainbow Bridge crossing the bay.',
+          description: 'Stroll along the beach and view the Rainbow Bridge.',
           timeSlot: '01:00 PM - 03:00 PM',
           location: 'Daiba, Minato City',
           estimatedCost: 0,
@@ -159,7 +174,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't11',
           title: 'Sushi Dinner at Toyosu Market',
-          description: 'Enjoy ultra-fresh sushi served direct from the world\'s largest seafood market auctions.',
+          description: 'Ultra-fresh sushi from the world\'s largest seafood market.',
           timeSlot: '06:00 PM - 08:30 PM',
           location: 'Toyosu Market Pier',
           estimatedCost: 60,
@@ -167,8 +182,8 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           isCompleted: false,
           isFavorite: false,
           notes: '',
-        }
-      ]
+        },
+      ],
     },
     {
       dayNumber: 4,
@@ -177,7 +192,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't12',
           title: 'Ueno Park & Toshogu Shrine',
-          description: 'Sprawling park housing multiple national museums and a golden Edo-period shrine that survived WWII bombings.',
+          description: 'Park housing multiple national museums and a golden Edo-period shrine.',
           timeSlot: '09:30 AM - 12:00 PM',
           location: 'Uenokoen, Taito City',
           estimatedCost: 5,
@@ -189,7 +204,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't13',
           title: 'Ameyoko Market Street Shopping',
-          description: 'Bustling open-air market street selling clothing, spices, street foods, and duty-free cosmetic goods.',
+          description: 'Bustling open-air market selling clothing, spices, and street foods.',
           timeSlot: '12:15 PM - 01:45 PM',
           location: 'Ueno, Taito City',
           estimatedCost: 12,
@@ -201,7 +216,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't14',
           title: 'Akihabara Electronic Town',
-          description: 'Vibrant epicenter of anime merchandise, retro arcade centers, and multi-story electric department stores.',
+          description: 'Epicenter of anime merchandise, retro arcades, and multi-story electronics.',
           timeSlot: '02:15 PM - 05:30 PM',
           location: 'Sotokanda, Chiyoda City',
           estimatedCost: 15,
@@ -209,8 +224,8 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           isCompleted: false,
           isFavorite: false,
           notes: '',
-        }
-      ]
+        },
+      ],
     },
     {
       dayNumber: 5,
@@ -219,7 +234,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't15',
           title: 'Imperial Palace East Gardens',
-          description: 'Visit the historic ruins of Edo Castle\'s defense walls, surrounded by clean Japanese koi ponds and lawns.',
+          description: 'Historic ruins of Edo Castle surrounded by koi ponds and lawns.',
           timeSlot: '09:30 AM - 11:30 AM',
           location: 'Chiyoda, Chiyoda City',
           estimatedCost: 0,
@@ -231,7 +246,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't16',
           title: 'Ginza Shopping & Art Galleries',
-          description: 'Explore high-end design boutiques, multi-story department stores (Ginza Six), and modern art exhibition showrooms.',
+          description: 'High-end boutiques, department stores, and modern art exhibitions.',
           timeSlot: '12:30 PM - 03:00 PM',
           location: 'Ginza, Chuo City',
           estimatedCost: 20,
@@ -243,7 +258,7 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
         {
           id: 't17',
           title: 'Farewell Kaiseki Dinner Banquet',
-          description: 'Traditional multi-course seasonal Japanese dining experience to conclude the expedition.',
+          description: 'Traditional multi-course seasonal Japanese dining to conclude the expedition.',
           timeSlot: '06:30 PM - 09:30 PM',
           location: 'Ginza district, Tokyo',
           estimatedCost: 120,
@@ -251,10 +266,10 @@ const MOCK_TOKYO_ITINERARY: TripItinerary = {
           isCompleted: false,
           isFavorite: false,
           notes: '',
-        }
-      ]
-    }
-  ]
+        },
+      ],
+    },
+  ],
 };
 
 interface ItineraryViewProps {
@@ -269,13 +284,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
   // Retrieve matching trip from saved context or override
   const trip = useMemo(() => {
     if (localTripOverride) return localTripOverride;
-    if (tripId === 'sample-tokyo-2026') {
-      return MOCK_TOKYO_ITINERARY;
-    }
+    if (tripId === 'sample-tokyo-2026') return MOCK_TOKYO_ITINERARY;
     return savedTrips.find((t) => t.id === tripId) || null;
   }, [savedTrips, tripId, localTripOverride]);
 
-  // Helper to update trip immutably
+  // Helper to update trip immutably and persist to localStorage
   const updateTripState = useCallback(
     (updater: (prev: TripItinerary) => TripItinerary) => {
       if (!trip) return;
@@ -284,6 +297,44 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
       saveTrip(updated);
     },
     [trip, saveTrip]
+  );
+
+  // ── dnd-kit sensors ────────────────────────────────────────────────
+  // PointerSensor — activates drag on mouse/touch after 8px movement (prevents accidental drags on click)
+  // KeyboardSensor — allows reordering with ↑ / ↓ / Space / Enter for full keyboard accessibility
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // ── Handler: Drag End — reorders activities and persists ──────────
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      updateTripState((prevTrip) => ({
+        ...prevTrip,
+        days: prevTrip.days.map((day) => {
+          if (day.dayNumber !== activeDay) return day;
+
+          const oldIndex = day.activities.findIndex((act) => act.id === active.id);
+          const newIndex = day.activities.findIndex((act) => act.id === over.id);
+
+          if (oldIndex === -1 || newIndex === -1) return day;
+
+          return {
+            ...day,
+            activities: arrayMove(day.activities, oldIndex, newIndex),
+          };
+        }),
+      }));
+    },
+    [activeDay, updateTripState]
   );
 
   // Handler: Toggle completion state
@@ -360,7 +411,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
     [updateTripState]
   );
 
-  // Extract day titles to pass as themes to the DaySelector tabs
+  // Extract day titles for DaySelector tabs
   const dayThemes = useMemo(() => {
     const themes: Record<number, string> = {};
     if (trip) {
@@ -371,11 +422,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
     return themes;
   }, [trip]);
 
-  // Retrieve current active day activities
+  // Current active day data
   const activeDayData = useMemo(() => {
     if (!trip) return null;
     return trip.days.find((day: DayItinerary) => day.dayNumber === activeDay) || null;
   }, [trip, activeDay]);
+
+  // Stable ID list for SortableContext
+  const activityIds = useMemo(
+    () => activeDayData?.activities.map((a) => a.id) ?? [],
+    [activeDayData]
+  );
 
   if (!trip) {
     return (
@@ -403,10 +460,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
 
   return (
     <div className="space-y-8">
-      {/* Itinerary Summary Overview with live automatic progress calculation */}
+      {/* Itinerary Summary Overview with live progress calculation */}
       <ItineraryOverview trip={trip} />
 
-      {/* Day Selector Tabs and Timeline Section */}
+      {/* Day Selector Tabs */}
       <div className="space-y-6">
         <div className="border-b border-slate-800 pb-2">
           <DaySelector
@@ -417,7 +474,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
           />
         </div>
 
-        {/* Selected Day Theme Banner */}
+        {/* Day Theme Banner */}
         {activeDayData && (
           <Card className="bg-slate-900/40 border border-slate-800/80 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="space-y-1">
@@ -426,38 +483,70 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
                 Day {activeDayData.dayNumber}: {activeDayData.title}
               </h3>
             </div>
-            <div className="text-xs text-slate-400 flex items-center gap-1">
-              <Clock className="w-4 h-4 text-sky-400" />
-              <span>{activeDayData.activities.length} planned items</span>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-slate-400 flex items-center gap-1">
+                <Clock className="w-4 h-4 text-sky-400" />
+                <span>{activeDayData.activities.length} planned items</span>
+              </div>
+              <div className="hidden sm:flex items-center gap-1 text-xs text-slate-500 border-l border-slate-800 pl-3">
+                <GripVertical className="w-3.5 h-3.5" />
+                <span>Drag to reorder</span>
+              </div>
             </div>
           </Card>
         )}
 
-        {/* Timeline Activities List */}
-        <div className="relative space-y-6 pt-2">
-          {activeDayData && activeDayData.activities.length > 0 ? (
-            activeDayData.activities.map((activity: Activity, idx: number) => (
-              <ActivityCard
-                key={activity.id || idx}
-                activity={activity}
-                dayNumber={activeDay}
-                onToggleComplete={handleToggleComplete}
-                onToggleFavorite={handleToggleFavorite}
-                onDeleteActivity={handleDeleteActivity}
-                onSaveNotes={handleSaveNotes}
-              />
-            ))
-          ) : (
-            <Card className="text-center py-10">
-              <Compass className="w-8 h-8 text-slate-600 mx-auto mb-2 animate-spin" />
-              <h4 className="text-sm font-bold text-slate-300">No scheduled activities on Day {activeDay}</h4>
-              <p className="text-xs text-slate-500 mt-1">This day is open for spontaneous sightseeing or rest.</p>
-            </Card>
-          )}
-        </div>
+        {/* Drag & Drop Context — Sortable Activities Timeline */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          accessibility={{
+            announcements: {
+              onDragStart({ active }) {
+                return `Picked up activity: ${active.id}. Use arrow keys to move, Space to drop.`;
+              },
+              onDragOver({ active, over }) {
+                if (over) return `Activity ${active.id} is over position ${over.id}.`;
+                return `Activity ${active.id} is no longer over a drop target.`;
+              },
+              onDragEnd({ active, over }) {
+                if (over) return `Activity ${active.id} was dropped over ${over.id}.`;
+                return `Activity ${active.id} was dropped.`;
+              },
+              onDragCancel({ active }) {
+                return `Drag cancelled. Activity ${active.id} returned to original position.`;
+              },
+            },
+          }}
+        >
+          <SortableContext items={activityIds} strategy={verticalListSortingStrategy}>
+            <div className="relative space-y-6 pt-2 pl-2">
+              {activeDayData && activeDayData.activities.length > 0 ? (
+                activeDayData.activities.map((activity: Activity, idx: number) => (
+                  <SortableActivityCard
+                    key={activity.id || idx}
+                    activity={activity}
+                    dayNumber={activeDay}
+                    onToggleComplete={handleToggleComplete}
+                    onToggleFavorite={handleToggleFavorite}
+                    onDeleteActivity={handleDeleteActivity}
+                    onSaveNotes={handleSaveNotes}
+                  />
+                ))
+              ) : (
+                <Card className="text-center py-10">
+                  <Compass className="w-8 h-8 text-slate-600 mx-auto mb-2 animate-spin" />
+                  <h4 className="text-sm font-bold text-slate-300">No activities on Day {activeDay}</h4>
+                  <p className="text-xs text-slate-500 mt-1">This day is open for spontaneous sightseeing.</p>
+                </Card>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
 
-      {/* Interactive Navigation Actions */}
+      {/* Navigation Actions */}
       <div className="flex flex-col sm:flex-row gap-4 border-t border-slate-800/80 pt-6">
         <Link to="/plan">
           <Button variant="glow" size="md">
