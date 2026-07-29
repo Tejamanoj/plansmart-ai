@@ -15,11 +15,10 @@ import {
   Compass,
   ArrowRight,
   Clock,
-  Sliders,
-  Type,
   Check,
   Tag,
   Zap,
+  MessageSquare,
 } from 'lucide-react';
 
 const MAX_CHARS = 1000;
@@ -65,7 +64,6 @@ export const PlannerForm: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState<'guided' | 'freeform'>('guided');
   const [destination, setDestination] = useState<string>('Tokyo, Japan');
   const [durationDays, setDurationDays] = useState<number>(5);
   const [travelStyle, setTravelStyle] = useState<string>('balanced');
@@ -84,7 +82,12 @@ export const PlannerForm: React.FC = () => {
     if (location.state && (location.state as { initialPrompt?: string }).initialPrompt) {
       const initial = (location.state as { initialPrompt: string }).initialPrompt;
       setPrompt(initial);
-      setActiveTab('freeform');
+      
+      // Auto-extract destination if present in initial prompt
+      const destMatch = initial.match(/(?:to|in|visit|explore)\s+([A-Z][a-zA-Z\s,]+?)(?:\s+for|\s+with|\s+on|\.|$)/);
+      if (destMatch && destMatch[1]) {
+        setDestination(destMatch[1].trim());
+      }
     }
   }, [location.state]);
 
@@ -97,21 +100,20 @@ export const PlannerForm: React.FC = () => {
   }, []);
 
   const finalPromptText = useMemo(() => {
-    if (activeTab === 'freeform') return prompt.trim();
     const currSymbol = CURRENCIES.find((c) => c.code === currency)?.symbol || '$';
     const interestsText = selectedInterests.length > 0 ? ` Focus on: ${selectedInterests.join(', ')}.` : '';
-    return `Plan a ${durationDays}-day ${travelStyle} trip to ${destination}. Estimated budget: ${currSymbol}${budgetValue} ${currency}.${interestsText}`;
-  }, [activeTab, prompt, durationDays, travelStyle, destination, budgetValue, currency, selectedInterests]);
+    const customNotesText = prompt.trim() ? ` Additional details: ${prompt.trim()}` : '';
+    return `Plan a ${durationDays}-day ${travelStyle} trip to ${destination}. Estimated budget: ${currSymbol}${budgetValue} ${currency}.${interestsText}${customNotesText}`;
+  }, [prompt, durationDays, travelStyle, destination, budgetValue, currency, selectedInterests]);
 
   const isValid = useMemo(() => {
-    if (activeTab === 'freeform') return prompt.trim().length >= 10 && prompt.length <= MAX_CHARS;
     return destination.trim().length >= 2 && durationDays > 0;
-  }, [activeTab, prompt, destination, durationDays]);
+  }, [destination, durationDays]);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!finalPromptText || finalPromptText.length < 5) {
-      setError('Please enter destination or trip details before submitting.');
+    if (!destination || destination.trim().length < 2) {
+      setError('Please enter a destination before submitting.');
       return;
     }
     setError(null);
@@ -130,11 +132,15 @@ export const PlannerForm: React.FC = () => {
       setIsLoading(false);
       setSlowResponseNotice(false);
     }
-  }, [finalPromptText, saveTrip, navigate]);
+  }, [destination, finalPromptText, saveTrip, navigate]);
 
   const handleExampleClick = useCallback((example: string) => {
     setPrompt(example);
-    setActiveTab('freeform');
+    // Parse city from example
+    if (example.includes('Tokyo')) setDestination('Tokyo, Japan');
+    else if (example.includes('Paris')) setDestination('Paris, France');
+    else if (example.includes('Bali')) setDestination('Bali, Indonesia');
+    else if (example.includes('Swiss')) setDestination('Swiss Alps, Switzerland');
     setError(null);
   }, []);
 
@@ -175,28 +181,6 @@ export const PlannerForm: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-5">
 
-      {/* Tab Switcher */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-white/4 border border-white/8 max-w-sm mx-auto">
-        {[
-          { id: 'guided',   icon: Sliders, label: 'Form Builder' },
-          { id: 'freeform', icon: Type,    label: 'AI Prompt' },
-        ].map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActiveTab(id as 'guided' | 'freeform')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === id
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/25'
-                : 'text-slate-500 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span>{label}</span>
-          </button>
-        ))}
-      </div>
-
       {/* Main Card */}
       <div className="glass-card rounded-2xl border border-indigo-500/15 shadow-2xl overflow-hidden">
         {/* Card Header */}
@@ -206,13 +190,9 @@ export const PlannerForm: React.FC = () => {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">
-                {activeTab === 'guided' ? 'Build Your Trip Plan' : 'Describe Your Dream Trip'}
-              </h2>
-              <p className="text-xs text-slate-600 mt-0.5">
-                {activeTab === 'guided'
-                  ? 'Select preferences using the options below, then click Generate'
-                  : 'Write a natural description and let AI do the rest'}
+              <h2 className="text-base font-bold text-white">Build Your AI Trip Plan</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Select your preferences below to generate your personalized itinerary
               </p>
             </div>
           </div>
@@ -225,198 +205,191 @@ export const PlannerForm: React.FC = () => {
         {/* Card Body */}
         <div className="p-6 space-y-7">
 
-          {/* ── GUIDED FORM ── */}
-          {activeTab === 'guided' && (
-            <div className="space-y-7">
+          {/* 1. Destination */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="step-badge">1</span>
+              <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+              Where do you want to go?
+            </label>
+            <input
+              type="text"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="Enter city or country (e.g. Tokyo, Paris, Bali, Dubai)..."
+              className="w-full rounded-xl bg-white/4 border border-white/8 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-indigo-500/4 transition-all"
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] text-slate-500 font-medium">Quick pick:</span>
+              {POPULAR_DESTINATIONS.map((dest) => (
+                <button
+                  key={dest}
+                  type="button"
+                  onClick={() => setDestination(dest)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                    destination === dest
+                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/35'
+                      : 'bg-white/4 text-slate-400 border-white/6 hover:text-white hover:bg-white/8 hover:border-white/14'
+                  }`}
+                >
+                  {dest}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              {/* 1. Destination */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                  <span className="step-badge">1</span>
-                  <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                  Destination
-                </label>
+          {/* 2. Duration */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="step-badge">2</span>
+              <Calendar className="w-3.5 h-3.5 text-sky-400" />
+              Trip Duration
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {DURATION_OPTIONS.map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => setDurationDays(days)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer border ${
+                    durationDays === days
+                      ? 'bg-sky-500/20 text-sky-300 border-sky-500/35 shadow-sm'
+                      : 'bg-white/4 text-slate-400 border-white/6 hover:text-white hover:bg-white/8 hover:border-white/14'
+                  }`}
+                >
+                  {days} Days
+                </button>
+              ))}
+              <div className="flex items-center gap-2 bg-white/4 border border-white/8 rounded-xl px-3 py-2">
                 <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="Enter city or country..."
-                  className="w-full rounded-xl bg-white/4 border border-white/8 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-indigo-500/4 transition-all"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={durationDays}
+                  onChange={(e) => setDurationDays(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-10 bg-transparent text-sm text-center text-white font-bold focus:outline-none"
                 />
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] text-slate-700 font-medium">Quick pick:</span>
-                  {POPULAR_DESTINATIONS.map((dest) => (
-                    <button
-                      key={dest}
-                      type="button"
-                      onClick={() => setDestination(dest)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
-                        destination === dest
-                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/35'
-                          : 'bg-white/4 text-slate-500 border-white/6 hover:text-white hover:bg-white/8 hover:border-white/14'
-                      }`}
-                    >
-                      {dest}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Duration */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                  <span className="step-badge">2</span>
-                  <Calendar className="w-3.5 h-3.5 text-sky-400" />
-                  Trip Duration
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  {DURATION_OPTIONS.map((days) => (
-                    <button
-                      key={days}
-                      type="button"
-                      onClick={() => setDurationDays(days)}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer border ${
-                        durationDays === days
-                          ? 'bg-sky-500/20 text-sky-300 border-sky-500/35 shadow-sm'
-                          : 'bg-white/4 text-slate-500 border-white/6 hover:text-white hover:bg-white/8 hover:border-white/14'
-                      }`}
-                    >
-                      {days}d
-                    </button>
-                  ))}
-                  <div className="flex items-center gap-2 bg-white/4 border border-white/8 rounded-xl px-3 py-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max="30"
-                      value={durationDays}
-                      onChange={(e) => setDurationDays(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-10 bg-transparent text-sm text-center text-white font-bold focus:outline-none"
-                    />
-                    <span className="text-[10px] text-slate-600">days</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Travel Style */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                  <span className="step-badge">3</span>
-                  <Compass className="w-3.5 h-3.5 text-purple-400" />
-                  Travel Style
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                  {TRAVEL_STYLES.map((style) => (
-                    <button
-                      key={style.id}
-                      type="button"
-                      onClick={() => setTravelStyle(style.id)}
-                      className={`p-3 rounded-xl text-left flex flex-col gap-1 transition-all cursor-pointer border ${
-                        travelStyle === style.id
-                          ? 'bg-purple-500/15 text-purple-200 border-purple-500/35 shadow-md'
-                          : 'bg-white/4 text-slate-400 border-white/6 hover:border-white/14 hover:bg-white/8'
-                      }`}
-                    >
-                      <div className="text-lg">{style.icon}</div>
-                      <div>
-                        <div className="text-xs font-bold text-white">{style.label}</div>
-                        <div className="text-[10px] text-slate-600 line-clamp-1 mt-0.5">{style.desc}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 4. Budget */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                  <span className="step-badge">4</span>
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                  Budget
-                </label>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 flex items-center rounded-xl bg-white/4 border border-white/8 px-3.5 py-3 focus-within:border-emerald-500/40 focus-within:bg-emerald-500/4 transition-all">
-                    <span className="text-sm font-bold text-emerald-400 mr-2">
-                      {CURRENCIES.find((c) => c.code === currency)?.symbol}
-                    </span>
-                    <input
-                      type="number"
-                      value={budgetValue}
-                      onChange={(e) => setBudgetValue(e.target.value)}
-                      placeholder="1500"
-                      className="w-full bg-transparent text-sm font-bold text-white focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1 bg-white/4 border border-white/8 p-1 rounded-xl">
-                    {CURRENCIES.map((curr) => (
-                      <button
-                        key={curr.code}
-                        type="button"
-                        onClick={() => setCurrency(curr.code)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          currency === curr.code
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35'
-                            : 'text-slate-500 hover:text-white'
-                        }`}
-                      >
-                        {curr.code}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 5. Interests */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                  <span className="step-badge">5</span>
-                  <Tag className="w-3.5 h-3.5 text-amber-400" />
-                  Interests
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  {INTEREST_TAGS.map((tag) => {
-                    const isSelected = selectedInterests.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleInterest(tag)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                          isSelected
-                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/35'
-                            : 'bg-white/4 text-slate-500 border-white/6 hover:text-white hover:bg-white/8 hover:border-white/14'
-                        }`}
-                      >
-                        {isSelected && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                        <span>{tag}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <span className="text-[10px] text-slate-500">days</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* ── FREEFORM ── */}
-          {activeTab === 'freeform' && (
-            <div className="space-y-3">
-              <textarea
-                ref={textareaRef}
-                id="trip-prompt"
-                value={prompt}
-                onChange={(e) => { setPrompt(e.target.value); if (error) setError(null); }}
-                placeholder="Example: Plan a 5-day budget trip to Tokyo for 2 people. We love street food, temples, and anime culture. Budget is ₹80,000..."
-                rows={6}
-                maxLength={MAX_CHARS + 50}
-                disabled={isLoading}
-                className="w-full resize-none rounded-xl bg-white/4 border border-white/8 px-4 py-3.5 text-sm text-white leading-relaxed placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/40 focus:bg-indigo-500/4 transition-all"
-              />
-              <div className="flex justify-between text-xs text-slate-600 px-1">
-                <span>Minimum 10 characters</span>
-                <span className={prompt.length > MAX_CHARS ? 'text-rose-400' : ''}>{prompt.length} / {MAX_CHARS}</span>
+          {/* 3. Travel Style */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="step-badge">3</span>
+              <Compass className="w-3.5 h-3.5 text-purple-400" />
+              Travel Style
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              {TRAVEL_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  type="button"
+                  onClick={() => setTravelStyle(style.id)}
+                  className={`p-3 rounded-xl text-left flex flex-col gap-1 transition-all cursor-pointer border ${
+                    travelStyle === style.id
+                      ? 'bg-purple-500/15 text-purple-200 border-purple-500/35 shadow-md'
+                      : 'bg-white/4 text-slate-400 border-white/6 hover:border-white/14 hover:bg-white/8'
+                  }`}
+                >
+                  <div className="text-lg">{style.icon}</div>
+                  <div>
+                    <div className="text-xs font-bold text-white">{style.label}</div>
+                    <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{style.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4. Budget */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="step-badge">4</span>
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              Estimated Budget
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center rounded-xl bg-white/4 border border-white/8 px-3.5 py-3 focus-within:border-emerald-500/40 focus-within:bg-emerald-500/4 transition-all">
+                <span className="text-sm font-bold text-emerald-400 mr-2">
+                  {CURRENCIES.find((c) => c.code === currency)?.symbol}
+                </span>
+                <input
+                  type="number"
+                  value={budgetValue}
+                  onChange={(e) => setBudgetValue(e.target.value)}
+                  placeholder="1500"
+                  className="w-full bg-transparent text-sm font-bold text-white focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1 bg-white/4 border border-white/8 p-1 rounded-xl">
+                {CURRENCIES.map((curr) => (
+                  <button
+                    key={curr.code}
+                    type="button"
+                    onClick={() => setCurrency(curr.code)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      currency === curr.code
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35'
+                        : 'text-slate-500 hover:text-white'
+                    }`}
+                  >
+                    {curr.code}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+          </div>
+
+          {/* 5. Interests */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="step-badge">5</span>
+              <Tag className="w-3.5 h-3.5 text-amber-400" />
+              Interests & Activities
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {INTEREST_TAGS.map((tag) => {
+                const isSelected = selectedInterests.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleInterest(tag)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                      isSelected
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/35'
+                        : 'bg-white/4 text-slate-400 border-white/6 hover:text-white hover:bg-white/8 hover:border-white/14'
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                    <span>{tag}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 6. Optional Special Requests / Notes */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="step-badge">6</span>
+              <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+              Additional Custom Preferences (Optional)
+            </label>
+            <textarea
+              ref={textareaRef}
+              id="trip-prompt"
+              value={prompt}
+              onChange={(e) => { setPrompt(e.target.value); if (error) setError(null); }}
+              placeholder="e.g. Traveling with 2 kids under 10, prefer vegetarian dining, love ramen & photo spots..."
+              rows={3}
+              maxLength={MAX_CHARS}
+              disabled={isLoading}
+              className="w-full resize-none rounded-xl bg-white/4 border border-white/8 px-4 py-3 text-sm text-white leading-relaxed placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/40 focus:bg-indigo-500/4 transition-all"
+            />
+          </div>
 
           {/* Submit Row */}
           <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row items-center gap-3">
@@ -444,7 +417,7 @@ export const PlannerForm: React.FC = () => {
             <button
               type="button"
               onClick={handleClear}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-4 rounded-xl border border-white/8 bg-white/4 text-sm font-medium text-slate-500 hover:text-white hover:bg-white/8 hover:border-white/16 transition-all cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-4 rounded-xl border border-white/8 bg-white/4 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/8 hover:border-white/16 transition-all cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Reset</span>
@@ -457,7 +430,7 @@ export const PlannerForm: React.FC = () => {
       <div className="glass-card rounded-2xl border border-white/6 p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Lightbulb className="w-4 h-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-slate-300">Or try one of these examples</h3>
+          <h3 className="text-sm font-semibold text-slate-300">Or click an example prompt to auto-fill</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {EXAMPLE_PROMPTS.map((example, idx) => (
