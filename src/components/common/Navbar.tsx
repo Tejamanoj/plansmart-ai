@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Sparkles, Menu, X, ArrowRight, Sun, Moon, Compass } from 'lucide-react';
+import { Sparkles, Menu, X, ArrowRight, Compass } from 'lucide-react';
 import { NAV_LINKS, APP_CONFIG } from '@/utils/constants';
 import { cn } from '@/utils/cn';
-import { useThemeContext } from '@/context/ThemeContext';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { isDark, toggleTheme } = useThemeContext();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -77,19 +75,8 @@ export const Navbar: React.FC = () => {
             ))}
           </nav>
 
-          {/* Desktop Actions */}
+          {/* Desktop Action */}
           <div className="hidden md:flex items-center gap-3">
-            <button
-              onClick={toggleTheme}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200 flex items-center justify-center"
-            >
-              {isDark
-                ? <Sun className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                : <Moon className="w-4 h-4 text-indigo-400" aria-hidden="true" />
-              }
-            </button>
-
             <Link to="/plan">
               <button className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer">
                 <Sparkles className="w-4 h-4" />
@@ -101,17 +88,6 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile controls */}
           <div className="flex md:hidden items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center"
-            >
-              {isDark
-                ? <Sun className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                : <Moon className="w-4 h-4 text-indigo-400" aria-hidden="true" />
-              }
-            </button>
-
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label="Toggle Navigation Menu"
