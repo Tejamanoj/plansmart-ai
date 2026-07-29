@@ -8,7 +8,6 @@ import {
   Sparkles,
   Loader2,
   Lightbulb,
-  RotateCcw,
   Calendar,
   MapPin,
   DollarSign,
@@ -392,11 +391,11 @@ export const PlannerForm: React.FC = () => {
           </div>
 
           {/* Submit Row */}
-          <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row items-center gap-3">
+          <div className="pt-4 border-t border-white/5 flex justify-center">
             <button
               type="submit"
               disabled={isLoading || !isValid}
-              className={`w-full sm:flex-1 btn-primary flex items-center justify-center gap-2.5 py-4 rounded-xl text-base font-bold text-white transition-all cursor-pointer shadow-xl shadow-indigo-500/25 ${
+              className={`w-full btn-primary flex items-center justify-center gap-2.5 py-4 rounded-xl text-base font-bold text-white transition-all cursor-pointer shadow-xl shadow-indigo-500/25 ${
                 !isValid ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -412,15 +411,6 @@ export const PlannerForm: React.FC = () => {
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleClear}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-4 rounded-xl border border-white/8 bg-white/4 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/8 hover:border-white/16 transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Reset</span>
             </button>
           </div>
         </div>
