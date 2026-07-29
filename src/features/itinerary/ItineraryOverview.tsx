@@ -10,14 +10,22 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
-  Star
+  Star,
+  RotateCcw,
+  CheckSquare
 } from 'lucide-react';
 
 interface ItineraryOverviewProps {
   trip: TripItinerary;
+  onMarkAllComplete?: () => void;
+  onResetProgress?: () => void;
 }
 
-export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({ trip }) => {
+export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({
+  trip,
+  onMarkAllComplete,
+  onResetProgress,
+}) => {
   let totalActivities = 0;
   let completedActivities = 0;
   let favoriteActivities = 0;
@@ -37,11 +45,11 @@ export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({ trip }) =>
     : 0;
 
   return (
-    <Card className="glass-panel border-slate-700/60 p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
-      <div className="absolute right-0 top-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+    <Card className="glass-panel border-indigo-500/20 p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+      <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Title Header */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-white/6 pb-5">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="purple" className="flex items-center gap-1">
@@ -114,20 +122,49 @@ export const ItineraryOverview: React.FC<ItineraryOverviewProps> = ({ trip }) =>
         </div>
       </div>
 
-      {/* Automatic Live Progress Tracker */}
-      <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2">
-        <div className="flex items-center justify-between text-xs font-semibold">
-          <span className="text-slate-300 flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Trip Execution Progress
-          </span>
-          <span className="text-emerald-400">
-            {completedActivities} of {totalActivities} completed ({completionPercentage}%)
-          </span>
+      {/* Automatic Live Progress Tracker with Quick Action Buttons */}
+      <div className="p-4 rounded-2xl bg-slate-900/80 border border-indigo-500/20 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="text-slate-200">Trip Execution Progress:</span>
+            <span className="text-emerald-400 font-bold">
+              {completedActivities} of {totalActivities} completed ({completionPercentage}%)
+            </span>
+          </div>
+
+          {/* Quick Action Controls */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {onMarkAllComplete && (
+              <button
+                type="button"
+                onClick={onMarkAllComplete}
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold hover:bg-emerald-500/25 transition-all flex items-center gap-1 cursor-pointer"
+                title="Mark all activities in this itinerary as completed"
+              >
+                <CheckSquare className="w-3 h-3" />
+                <span>Mark All Done</span>
+              </button>
+            )}
+
+            {onResetProgress && completedActivities > 0 && (
+              <button
+                type="button"
+                onClick={onResetProgress}
+                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-[11px] font-semibold hover:text-white hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer"
+                title="Reset completion progress back to 0%"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
-        <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+
+        {/* Progress Bar */}
+        <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-white/5">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-sky-400 rounded-full transition-all duration-500"
+            className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400 rounded-full transition-all duration-500 shadow-sm shadow-emerald-500/50"
             style={{ width: `${completionPercentage}%` }}
           />
         </div>

@@ -16,6 +16,7 @@ import {
   Moon,
   Camera,
   CheckCircle2,
+  Check,
   Star,
   Trash2,
   ChevronDown,
@@ -78,23 +79,24 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       <div
         className={cn(
           'absolute left-[15px] sm:left-[19px] top-0 bottom-0 w-0.5 transition-colors duration-300',
-          activity.isCompleted ? 'bg-emerald-500/40' : 'bg-slate-800 group-hover:bg-sky-500/30'
+          activity.isCompleted ? 'bg-emerald-500/40' : 'bg-slate-800 group-hover:bg-indigo-500/30'
         )}
       />
 
-      {/* Circle Marker Node (Mark Completed Toggle) */}
+      {/* Timeline Circle Node — Clickable Checkbox */}
       <button
+        type="button"
         onClick={() => onToggleComplete(dayNumber, activity.id)}
         title={activity.isCompleted ? 'Mark as incomplete' : 'Mark as completed'}
         className={cn(
-          'absolute left-1.5 sm:left-2 top-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 z-10 shadow-lg cursor-pointer',
+          'absolute left-1.5 sm:left-2 top-2.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 z-10 shadow-lg cursor-pointer',
           activity.isCompleted
-            ? 'bg-emerald-500 border-emerald-400 text-slate-950 scale-105'
-            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-sky-500 hover:text-sky-400 hover:scale-110'
+            ? 'bg-emerald-500 border-emerald-400 text-slate-950 scale-105 shadow-emerald-500/30'
+            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-emerald-500 hover:text-emerald-400 hover:scale-110'
         )}
       >
         {activity.isCompleted ? (
-          <CheckCircle2 className="w-4 h-4 text-slate-950 font-bold" />
+          <Check className="w-4 h-4 text-slate-950 stroke-[3]" />
         ) : (
           <IconComponent className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         )}
@@ -105,8 +107,8 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
         className={cn(
           'glass-card transition-all duration-300 p-4 sm:p-5 space-y-3.5 border',
           activity.isCompleted
-            ? 'border-emerald-500/30 bg-emerald-950/10'
-            : 'border-slate-800 hover:border-slate-700/60'
+            ? 'border-emerald-500/30 bg-emerald-950/15 shadow-lg shadow-emerald-950/20'
+            : 'border-white/8 hover:border-indigo-500/30'
         )}
       >
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -114,8 +116,10 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           <div className="space-y-1.5 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
                 onClick={() => onToggleComplete(dayNumber, activity.id)}
                 className="cursor-pointer"
+                title={activity.isCompleted ? 'Click to mark as incomplete' : 'Click to mark as completed'}
               >
                 <span
                   className={cn(
@@ -146,27 +150,45 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             </div>
 
             <h4
+              onClick={() => onToggleComplete(dayNumber, activity.id)}
               className={cn(
-                'text-base sm:text-lg font-bold transition-colors',
+                'text-base sm:text-lg font-bold transition-colors cursor-pointer',
                 activity.isCompleted
                   ? 'line-through text-slate-400'
-                  : 'text-white group-hover:text-sky-300'
+                  : 'text-white hover:text-indigo-300'
               )}
             >
               {activity.title}
             </h4>
           </div>
 
-          {/* Action Tools: Favorite, Expand, Delete */}
+          {/* Action Toolbar */}
           <div className="flex items-center gap-1.5 self-start shrink-0">
+            {/* PROMINENT MARK DONE BUTTON */}
+            <button
+              type="button"
+              onClick={() => onToggleComplete(dayNumber, activity.id)}
+              title={activity.isCompleted ? 'Mark as incomplete' : 'Mark as completed'}
+              className={cn(
+                'px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 cursor-pointer',
+                activity.isCompleted
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm'
+                  : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+              )}
+            >
+              <CheckCircle2 className={cn('w-3.5 h-3.5', activity.isCompleted ? 'text-emerald-400 fill-emerald-400/20' : 'text-slate-400')} />
+              <span>{activity.isCompleted ? 'Done' : 'Mark Done'}</span>
+            </button>
+
             {/* Expense Badge */}
-            <div className="px-2.5 py-1 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-bold text-emerald-400 flex items-center gap-0.5 mr-1">
+            <div className="px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-xs font-bold text-emerald-400 flex items-center gap-0.5">
               <DollarSign className="w-3.5 h-3.5" />
               <span>{activity.estimatedCost > 0 ? `${activity.estimatedCost}` : 'Free'}</span>
             </div>
 
             {/* Favorite Toggle */}
             <button
+              type="button"
               onClick={() => onToggleFavorite(dayNumber, activity.id)}
               title={activity.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               className={cn(
@@ -181,6 +203,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
             {/* Expand / Collapse Details Toggle */}
             <button
+              type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
               title={isExpanded ? 'Collapse details' : 'Expand details'}
               className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-all duration-200 cursor-pointer"
@@ -190,6 +213,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
             {/* Delete Activity Button */}
             <button
+              type="button"
               onClick={() => onDeleteActivity(dayNumber, activity.id)}
               title="Delete activity"
               className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/40 transition-all duration-200 cursor-pointer"
@@ -221,6 +245,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
               </span>
               {!isEditingNotes && (
                 <button
+                  type="button"
                   onClick={() => setIsEditingNotes(true)}
                   className="text-xs text-sky-400 hover:underline font-medium cursor-pointer"
                 >

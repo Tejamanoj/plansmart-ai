@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   DndContext,
@@ -281,11 +281,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [localTripOverride, setLocalTripOverride] = useState<TripItinerary | null>(null);
 
+  // Clear local override whenever the route parameter tripId changes
+  useEffect(() => {
+    setLocalTripOverride(null);
+    setActiveDay(1);
+  }, [tripId]);
+
   // Retrieve matching trip from saved context or override
   const trip = useMemo(() => {
-    if (localTripOverride) return localTripOverride;
-    if (tripId === 'sample-tokyo-2026') return MOCK_TOKYO_ITINERARY;
-    return savedTrips.find((t) => t.id === tripId) || null;
+    if (localTripOverride && (!tripId || localTripOverride.id === tripId)) {
+      return localTripOverride;
+    }
+    if (tripId) {
+      const found = savedTrips.find((t) => t.id === tripId);
+      if (found) return found;
+      if (tripId === 'sample-tokyo-2026') return MOCK_TOKYO_ITINERARY;
+    }
+    // Fallback: Return most recent saved trip if available, otherwise sample Tokyo
+    return savedTrips.length > 0 ? savedTrips[0] : MOCK_TOKYO_ITINERARY;
   }, [savedTrips, tripId, localTripOverride]);
 
   // Helper to update trip immutably and persist to localStorage
@@ -375,6 +388,28 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
     [updateTripState]
   );
 
+  // Handler: Mark all activities completed
+  const handleMarkAllComplete = useCallback(() => {
+    updateTripState((prevTrip) => ({
+      ...prevTrip,
+      days: prevTrip.days.map((day) => ({
+        ...day,
+        activities: day.activities.map((act) => ({ ...act, isCompleted: true })),
+      })),
+    }));
+  }, [updateTripState]);
+
+  // Handler: Reset completion progress back to 0
+  const handleResetProgress = useCallback(() => {
+    updateTripState((prevTrip) => ({
+      ...prevTrip,
+      days: prevTrip.days.map((day) => ({
+        ...day,
+        activities: day.activities.map((act) => ({ ...act, isCompleted: false })),
+      })),
+    }));
+  }, [updateTripState]);
+
   // Handler: Delete activity
   const handleDeleteActivity = useCallback(
     (dayNumber: number, activityId: string) => {
@@ -461,7 +496,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
   return (
     <div className="space-y-8">
       {/* Itinerary Summary Overview with live progress calculation */}
-      <ItineraryOverview trip={trip} />
+      <ItineraryOverview
+        trip={trip}
+        onMarkAllComplete={handleMarkAllComplete}
+        onResetProgress={handleResetProgress}
+      />
 
       {/* Day Selector Tabs */}
       <div className="space-y-6">
@@ -480,7 +519,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ tripId }) => {
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Today's Focus</span>
               <h3 className="text-lg font-bold text-white">
-                Day {activeDayData.dayNumber}: {activeDayData.title}
+                {activeDayData.title.startsWith(`Day ${activeDayData.dayNumber}`)
+                  ? activeDayData.title
+                  : `Day ${activeDayData.dayNumber}: ${activeDayData.title}`}
               </h3>
             </div>
             <div className="flex items-center gap-3">

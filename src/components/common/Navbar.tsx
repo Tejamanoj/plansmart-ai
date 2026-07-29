@@ -1,47 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Compass, Sparkles, Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
+import { Sparkles, Menu, X, ArrowRight, Sun, Moon, Compass } from 'lucide-react';
 import { NAV_LINKS, APP_CONFIG } from '@/utils/constants';
-import { Button } from '@/components/common/Button';
 import { cn } from '@/utils/cn';
 import { useThemeContext } from '@/context/ThemeContext';
 
-/**
- * Navbar — sticky top navigation.
- *
- * Accessibility features:
- *  - role="banner" landmark
- *  - aria-label on all icon-only buttons
- *  - aria-expanded on mobile drawer toggle
- *  - aria-current="page" on active NavLinks (handled by React Router isActive)
- *  - keyboard-focusable all controls
- */
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { isDark, toggleTheme } = useThemeContext();
 
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header role="banner" className="sticky top-0 z-50 w-full glass-panel border-b border-slate-800/80 backdrop-blur-xl">
+    <header
+      role="banner"
+      className={cn(
+        'sticky top-0 z-50 w-full transition-all duration-300',
+        scrolled
+          ? 'glass-panel border-b border-indigo-500/15 shadow-lg shadow-indigo-950/50'
+          : 'bg-transparent border-b border-transparent'
+      )}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          {/* Brand Logo */}
+        <div className="flex items-center justify-between h-[68px]">
+          {/* Brand */}
           <Link to="/" aria-label="PlanSmart AI – Go to homepage" className="flex items-center gap-3 group">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 text-white shadow-lg shadow-sky-500/25 group-hover:scale-105 transition-transform duration-300">
-              <Compass className="w-6 h-6 animate-pulse-glow" aria-hidden="true" />
+            <div className="relative">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-indigo-500/50 transition-shadow duration-300">
+                <Compass className="w-5 h-5 text-white" aria-hidden="true" />
+              </div>
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#050810] animate-pulse" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+            <div>
+              <span className="text-[17px] font-bold tracking-tight text-white">
                 {APP_CONFIG.appName}
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                  <Sparkles className="w-2.5 h-2.5 mr-1 text-sky-400" aria-hidden="true" /> AI v1.0
-                </span>
               </span>
-              <span className="text-[11px] text-slate-400 hidden sm:block">{APP_CONFIG.tagline}</span>
+              <div className="flex items-center gap-1 mt-[-2px]">
+                <Sparkles className="w-2.5 h-2.5 text-indigo-400" />
+                <span className="text-[10px] font-semibold text-indigo-400 tracking-wider uppercase">
+                  AI Travel Engine
+                </span>
+              </div>
             </div>
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav aria-label="Primary navigation" className="hidden md:flex items-center gap-2">
+          {/* Desktop Nav */}
+          <nav aria-label="Primary navigation" className="hidden md:flex items-center gap-1">
             {NAV_LINKS.map((link) => (
               <NavLink
                 key={link.path}
@@ -49,51 +58,57 @@ export const Navbar: React.FC = () => {
                 end={link.path === '/'}
                 className={({ isActive }) =>
                   cn(
-                    'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500',
+                    'relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-slate-800/80 text-sky-400 shadow-sm border border-slate-700/60'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/40'
+                      ? 'text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   )
                 }
               >
-                {link.label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span className="absolute inset-0 rounded-lg bg-indigo-500/15 border border-indigo-500/25" />
+                    )}
+                    <span className="relative">{link.label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
 
-          {/* Desktop Action Buttons */}
+          {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Dark / Light Mode Toggle */}
             <button
               onClick={toggleTheme}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-700/80 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-200 flex items-center justify-center"
             >
               {isDark
                 ? <Sun className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                : <Moon className="w-4 h-4 text-sky-400" aria-hidden="true" />
+                : <Moon className="w-4 h-4 text-indigo-400" aria-hidden="true" />
               }
             </button>
 
             <Link to="/plan">
-              <Button variant="glow" size="md">
-                <span>Start Planning Free</span>
-                <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-              </Button>
+              <button className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer">
+                <Sparkles className="w-4 h-4" />
+                <span>Start Planning</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </Link>
           </div>
 
-          {/* Mobile: Theme + Hamburger */}
+          {/* Mobile controls */}
           <div className="flex md:hidden items-center gap-2">
             <button
               onClick={toggleTheme}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center"
             >
               {isDark
-                ? <Sun className="w-5 h-5 text-amber-400" aria-hidden="true" />
-                : <Moon className="w-5 h-5 text-sky-400" aria-hidden="true" />
+                ? <Sun className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                : <Moon className="w-4 h-4 text-indigo-400" aria-hidden="true" />
               }
             </button>
 
@@ -102,24 +117,21 @@ export const Navbar: React.FC = () => {
               aria-label="Toggle Navigation Menu"
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation"
-              className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center"
             >
               {mobileMenuOpen
-                ? <X className="w-6 h-6" aria-hidden="true" />
-                : <Menu className="w-6 h-6" aria-hidden="true" />
+                ? <X className="w-5 h-5" aria-hidden="true" />
+                : <Menu className="w-5 h-5" aria-hidden="true" />
               }
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation Drawer */}
+      {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div
-          id="mobile-navigation"
-          className="md:hidden glass-panel border-t border-slate-800/80 px-4 pt-3 pb-6 space-y-3 animate-in fade-in slide-in-from-top-4 duration-300"
-        >
-          <nav aria-label="Mobile navigation" className="flex flex-col space-y-1">
+        <div id="mobile-navigation" className="md:hidden border-t border-white/5 bg-[#080d1e]/95 backdrop-blur-xl px-4 pt-4 pb-6 space-y-4 animate-fade-in-up">
+          <nav className="flex flex-col space-y-1">
             {NAV_LINKS.map((link) => (
               <NavLink
                 key={link.path}
@@ -128,10 +140,10 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    'px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500',
+                    'px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
-                      : 'text-slate-300 hover:bg-slate-800/50'
+                      ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/25'
+                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
                   )
                 }
               >
@@ -139,14 +151,13 @@ export const Navbar: React.FC = () => {
               </NavLink>
             ))}
           </nav>
-          <div className="pt-2">
-            <Link to="/plan" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="glow" size="lg" className="w-full">
-                <span>Start Planning Free</span>
-                <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-              </Button>
-            </Link>
-          </div>
+          <Link to="/plan" onClick={() => setMobileMenuOpen(false)}>
+            <button className="btn-primary w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white cursor-pointer">
+              <Sparkles className="w-4 h-4" />
+              <span>Start Planning Free</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
         </div>
       )}
     </header>

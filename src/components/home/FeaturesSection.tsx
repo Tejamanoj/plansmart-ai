@@ -1,89 +1,109 @@
 import React from 'react';
-import { Card } from '@/components/common/Card';
-import { Sparkles, DollarSign, Calendar, Compass, Map, Shield } from 'lucide-react';
+import { Sparkles, DollarSign, Calendar, Compass, Map, Shield, Zap, Globe } from 'lucide-react';
+
+const FEATURES = [
+  {
+    icon: Sparkles,
+    title: 'Instant AI Itineraries',
+    description: 'Generate complete day-by-day travel plans with activities, timings, and recommendations in under 10 seconds.',
+    gradient: 'from-indigo-500 to-purple-600',
+    glow: 'indigo',
+  },
+  {
+    icon: DollarSign,
+    title: 'Smart Budget Planner',
+    description: 'Real-time cost estimation for accommodation, food, transport, and experiences — keeping you in budget.',
+    gradient: 'from-emerald-500 to-teal-600',
+    glow: 'emerald',
+  },
+  {
+    icon: Calendar,
+    title: 'Day-by-Day Timeline',
+    description: 'Activities organized into logical time slots with realistic pacing, morning to evening.',
+    gradient: 'from-sky-500 to-blue-600',
+    glow: 'sky',
+  },
+  {
+    icon: Compass,
+    title: 'Custom Travel Styles',
+    description: 'Choose from Budget, Balanced, Luxury, Adventure, or Family modes — fully tailored to your preference.',
+    gradient: 'from-violet-500 to-purple-600',
+    glow: 'violet',
+  },
+  {
+    icon: Map,
+    title: 'Route Optimization',
+    description: 'Smart grouping of nearby attractions reduces transit time and maximizes your time at each destination.',
+    gradient: 'from-amber-500 to-orange-600',
+    glow: 'amber',
+  },
+  {
+    icon: Shield,
+    title: 'Saved Offline Access',
+    description: 'Itineraries persist locally so you can access your plans without internet during your trip.',
+    gradient: 'from-rose-500 to-pink-600',
+    glow: 'rose',
+  },
+];
 
 export const FeaturesSection: React.FC = () => {
-  const features = [
-    {
-      icon: Sparkles,
-      title: 'Instant AI Itineraries',
-      description: 'Generates day-by-day itineraries custom-built around your interests and destination goals.',
-      color: 'sky',
-      badge: 'Core Engine',
-    },
-    {
-      icon: DollarSign,
-      title: 'Smart Budget Optimizer',
-      description: 'Calculates activity, dining, and stay expense estimates to keep your journey within budget.',
-      color: 'emerald',
-      badge: 'Financial Intelligence',
-    },
-    {
-      icon: Calendar,
-      title: 'Day-by-Day Timeline',
-      description: 'Organizes sightseeing, food spots, and hidden gems in logical time slots with realistic pacing.',
-      color: 'indigo',
-      badge: 'Time Management',
-    },
-    {
-      icon: Compass,
-      title: 'Custom Travel Styles',
-      description: 'Tailor plans to Budget, Luxury, Family, or Adventure styles at the click of a button.',
-      color: 'purple',
-      badge: 'Personalization',
-    },
-    {
-      icon: Map,
-      title: 'Smart Route Pacing',
-      description: 'Minimizes transit time by grouping nearby activities and attractions together.',
-      color: 'amber',
-      badge: 'Route Optimization',
-    },
-    {
-      icon: Shield,
-      title: 'Offline & Saved Access',
-      description: 'Bookmark itineraries in local storage for quick access anywhere on your trip.',
-      color: 'rose',
-      badge: 'Data Security',
-    },
-  ];
-
   return (
-    <section className="py-16 space-y-12">
-      {/* Section Header */}
-      <div className="text-center max-w-2xl mx-auto space-y-3">
+    <section className="py-20 space-y-14">
+      {/* Divider */}
+      <div className="section-divider" />
+
+      {/* Header */}
+      <div className="text-center max-w-2xl mx-auto space-y-4">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/8 text-xs font-semibold text-indigo-300">
+          <Zap className="w-3.5 h-3.5" />
+          <span>Platform Features</span>
+        </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Engineered for <span className="gradient-text">Seamless Travel Planning</span>
+          Everything you need to{' '}
+          <span className="gradient-text">plan perfectly</span>
         </h2>
-        <p className="text-slate-400 text-base">
-          Discover intelligent capabilities designed to remove friction from your vacation planning.
+        <p className="text-slate-500 text-base leading-relaxed">
+          Intelligent travel planning powered by cutting-edge AI — from inspiration to a complete itinerary.
         </p>
       </div>
 
       {/* Feature Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {features.map((feature, idx) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {FEATURES.map((feature, idx) => {
           const Icon = feature.icon;
           return (
-            <Card
+            <div
               key={idx}
-              className="glass-card glass-card-hover p-6 flex flex-col justify-between space-y-4 border border-slate-800"
+              className="glass-card card-shine glass-card-hover rounded-2xl p-6 flex flex-col space-y-4 group"
             >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                    {feature.badge}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold text-white">{feature.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{feature.description}</p>
+              {/* Icon */}
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center shadow-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                <Icon className="w-5 h-5 text-white" />
               </div>
-            </Card>
+
+              <div className="space-y-2">
+                <h3 className="text-base font-bold text-white">{feature.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{feature.description}</p>
+              </div>
+            </div>
           );
         })}
+      </div>
+
+      {/* Bottom Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
+        {[
+          { value: '10K+', label: 'Trips Planned', icon: Globe },
+          { value: '<10s', label: 'Generation Time', icon: Zap },
+          { value: '50+', label: 'Destinations', icon: Map },
+          { value: '99.4%', label: 'User Satisfaction', icon: Sparkles },
+        ].map(({ value, label, icon: Icon }) => (
+          <div key={label} className="glass-card rounded-2xl p-5 text-center border border-white/5 hover:border-indigo-500/20 transition-colors">
+            <Icon className="w-4 h-4 text-indigo-400 mx-auto mb-2" />
+            <div className="text-2xl font-extrabold text-white">{value}</div>
+            <div className="text-xs text-slate-500 mt-1">{label}</div>
+          </div>
+        ))}
       </div>
     </section>
   );
